@@ -49,12 +49,12 @@ function obj = locproj_conf(varargin)
 
     if strcmp(obj.type,'reg')==1
         ster = sqrt( diag( VC( 1:(obj.H_max+1-obj.H_min) , 1:(obj.H_max+1-obj.H_min) ) ) );                
-        conf(1+obj.H_min:end,1) = theta(1:obj.K) + ster*norminv(0.05);
-        conf(1+obj.H_min:end,2) = theta(1:obj.K) + ster*norminv(0.95);
+        conf(1+obj.H_min:end,1) = theta(1:obj.K)*obj.delta + ster*obj.delta*norminv(0.05);
+        conf(1+obj.H_min:end,2) = theta(1:obj.K)*obj.delta + ster*obj.delta*norminv(0.95);
     else
         ster = sqrt( diag( obj.B*VC( 1:obj.K , 1:obj.K )*obj.B' ) );                
-        conf(1+obj.H_min:end,1) = obj.B*theta(1:obj.K) + ster*norminv(0.05);
-        conf(1+obj.H_min:end,2) = obj.B*theta(1:obj.K) + ster*norminv(0.95);
+        conf(1+obj.H_min:end,1) = obj.B*theta(1:obj.K)*obj.delta + ster*obj.delta*norminv(0.05);
+        conf(1+obj.H_min:end,2) = obj.B*theta(1:obj.K)*obj.delta + ster*obj.delta*norminv(0.95);
     end
 
     obj.ster = ster;

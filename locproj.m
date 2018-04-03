@@ -29,13 +29,20 @@ function obj = locproj(varargin)
     end    
 
     obj = struct();
-      
-    std = strcmp('reg',type);
+    
+    if isempty(w)
+        delta = std(x);
+    else
+        delta = std( x-w*inv(w'*w)*w'*x );
+    end
+    
+    isreg = strcmp('reg',type);
+    
     T  = length(y);
     HR = H_max + 1 - H_min;
     
-    % constructr the B-spline basis functions
-    if ~std
+    % construct the B-spline basis functions
+    if ~isreg
         B = bspline( (H_min:H_max)' , H_min , H_max+1 , H_max+1-H_min , 3 );
         K = size( B , 2 );
     else
@@ -63,7 +70,7 @@ function obj = locproj(varargin)
         Y( idx_beg:idx_end ) = [ y( y_range ) ; nan(HR-length(y_range),1) ];
 
         % x
-        if std
+        if isreg
             Xb( idx_beg:idx_end , : ) = eye(HR)*x(t);
         else
             Xb( idx_beg:idx_end , : ) = B*x(t);
@@ -90,10 +97,10 @@ function obj = locproj(varargin)
     % estimation
     IR  = zeros(H_max+1,1);
     
-    if std
+    if isreg
 
         theta     = ( X'*X )\( X'*Y );
-        IR((H_min+1):end) = theta(1:K);
+        IR((H_min+1):end) = theta(1:K) * delta;
     
     else
 
@@ -108,7 +115,7 @@ function obj = locproj(varargin)
 
         theta = ( X'*X + lambda*P )\( X'*Y );
         
-        IR((1+H_min):end) = B * theta(1:K);
+        IR((1+H_min):end) = B * theta(1:K) * delta;
     end
     
     % pack everything up
@@ -118,7 +125,7 @@ function obj = locproj(varargin)
     obj.HR    = HR;
     obj.K     = K;
     
-    if std
+    if isreg
         obj.B      = 0;
         obj.P      = zeros( size(X,2) );
         obj.lambda = 0;
@@ -129,11 +136,13 @@ function obj = locproj(varargin)
     end
     
     obj.type  = type;
+    obj.delta = delta;
     obj.idx   = idx;
     obj.Y     = Y;
     obj.X     = X;
     obj.theta = theta;
     obj.IR    = IR;
+    obj.delta = delta;
     
     % debug stuff
     % Bs is for display / debugging pourposes only
