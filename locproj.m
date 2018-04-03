@@ -1,28 +1,28 @@
 function obj = locproj(varargin)
 % locproj
 %
-%   locporj(y,x,w,h1,H,type)
-%   locporj(y,x,w,h1,H,type,r,lambda)
+%   locporj(y,x,w,H_min,H_max,type)
+%   locporj(y,x,w,H_min,H_max,type,r,lambda)
 %
 %   
     switch length(varargin)
         case 6
-            y    = varargin{1};
-            x    = varargin{2};
-            w    = varargin{3};
-            h1   = varargin{4};
-            H    = varargin{5};
-            type = varargin{6};
+            y     = varargin{1};
+            x     = varargin{2};
+            w     = varargin{3};
+            H_min = varargin{4};
+            H_max = varargin{5};
+            type  = varargin{6};
 
         case 8
-            y    = varargin{1};
-            x    = varargin{2};
-            w    = varargin{3};
-            h1   = varargin{4};
-            H    = varargin{5};
-            type = varargin{6};            
-            r    = varargin{7};
-            lam  = varargin{8};
+            y       = varargin{1};
+            x       = varargin{2};
+            w       = varargin{3};
+            H_min   = varargin{4};
+            H_max   = varargin{5};
+            type    = varargin{6};            
+            r       = varargin{7};
+            lambda  = varargin{8};
             
         otherwise
             error('wrong number of input arguments')
@@ -32,34 +32,34 @@ function obj = locproj(varargin)
       
     std = strcmp('reg',type);
     T  = length(y);
-    HR = H + 1 - h1;
+    HR = H_max + 1 - H_min;
     
     % constructr the B-spline basis functions
     if ~std
-        B = bspline( (h1:H)' , h1 , H+1 , H+1-h1 , 3 );
+        B = bspline( (H_min:H_max)' , H_min , H_max+1 , H_max+1-H_min , 3 );
         K = size( B , 2 );
     else
         K = HR;
     end
 
     % building up the regression representation of the local projection
-    idx = nan( (H+1)*T , 2 );
-    Y   = nan( (H+1)*T , 1 );
-    Xb  = zeros( (H+1)*T , K );
-    Xc  = zeros( (H+1)*T , HR , size(w,2)+1 );
+    idx = nan( (H_max+1)*T , 2 );
+    Y   = nan( (H_max+1)*T , 1 );
+    Xb  = zeros( (H_max+1)*T , K );
+    Xc  = zeros( (H_max+1)*T , HR , size(w,2)+1 );
     
     w = [ ones(T,1) w ];
     
-    for t = 1:T-h1
+    for t = 1:T-H_min
         
         idx_beg = (t-1)*HR + 1;
         idx_end = t*HR;
 
         idx( idx_beg:idx_end , 1 ) = t;
-        idx( idx_beg:idx_end , 2 ) = h1:H;
+        idx( idx_beg:idx_end , 2 ) = H_min:H_max;
         
         % y
-        y_range = (t+h1) : min((t+H),T)';
+        y_range = (t+H_min) : min((t+H_max),T)';
         Y( idx_beg:idx_end ) = [ y( y_range ) ; nan(HR-length(y_range),1) ];
 
         % x
@@ -88,12 +88,12 @@ function obj = locproj(varargin)
     X   = sparse(X);
 
     % estimation
-    IR  = zeros(H+1,1);
+    IR  = zeros(H_max+1,1);
     
     if std
 
         theta     = ( X'*X )\( X'*Y );
-        IR((h1+1):end) = theta(1:K);
+        IR((H_min+1):end) = theta(1:K);
     
     else
 
@@ -106,30 +106,38 @@ function obj = locproj(varargin)
         
         P(1:K,1:K) = D' * D;
 
-        theta = ( X'*X + lam*P )\( X'*Y );
+        theta = ( X'*X + lambda*P )\( X'*Y );
         
-        IR((1+h1):end) = B * theta(1:K);
+        IR((1+H_min):end) = B * theta(1:K);
     end
     
     % pack everything up
-    obj.T   = T;
-    obj.HR  = HR;
-    obj.K   = K;
+    obj.T     = T;
+    obj.H_min = H_min;
+    obj.H_max = H_max;
+    obj.HR    = HR;
+    obj.K     = K;
     
-    if ~std
-        obj.B   = B;
+    if std
+        obj.B      = 0;
+        obj.P      = zeros( size(X,2) );
+        obj.lambda = 0;
+    else
+        obj.B      = B;
+        obj.P      = P;
+        obj.lambda = lambda;
     end
     
+    obj.type  = type;
     obj.idx   = idx;
     obj.Y     = Y;
     obj.X     = X;
     obj.theta = theta;
     obj.IR    = IR;
     
-    
     % debug stuff
     % Bs is for display / debugging pourposes only
-    % Bs = bspline( (h1:0.1:H)' , h1 , H+1 , H+1-h1 , 3 );
+    % Bs = bspline( (H_min:0.1:H)' , H_min , H+1 , H+1-H_min , 3 );
     % obj.Bs = Bs;
 end
 
